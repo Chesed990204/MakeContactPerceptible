@@ -1,25 +1,12 @@
-/******************************************************************************
- * Copyright (C) Ultraleap, Inc. 2011-2024.                                   *
- *                                                                            *
- * Use subject to the terms of the Apache License 2.0 available at            *
- * http://www.apache.org/licenses/LICENSE-2.0, or another agreement           *
- * between Ultraleap and you, your company or other organization.             *
- ******************************************************************************/
-
 using Leap.Attributes;
 using System.Collections.Generic;
 using UnityEngine;
-
+using Bhaptics.SDK2;
+using Bhaptics.SDK2.Glove;
 
 namespace Leap
 {
-    /// <summary>
-    /// The CapsuleHand is a basic Leap hand model that generates a set of spheres and 
-    /// cylinders to render hands using Leap hand data.
-    /// It is constructed dynamically rather than using pre-existing geometry which
-    /// allows hand visuals to scale to the size of the users hand and 
-    /// is a reliable way to visualize the raw tracking data.
-    /// </summary>
+
     public class CustomCapsuleHand : HandModelBase
     {
         public enum CapsuleHandPreset
@@ -47,7 +34,7 @@ namespace Leap
         private const int TOTAL_JOINT_COUNT = 4 * 5;
         private const float CYLINDER_MESH_RESOLUTION = 0.1f; //in centimeters, meshes within this resolution will be re-used
         private const int PINKY_BASE_INDEX = (int)Finger.FingerType.PINKY * 4;
-
+        
         private static int _leftColorIndex = 0;
         private static int _rightColorIndex = 0;
         private static Color[] _leftColorList = { new Color(0.0f, 0.0f, 1.0f), new Color(0.2f, 0.0f, 0.4f), new Color(0.0f, 0.2f, 0.2f) };
@@ -275,16 +262,25 @@ namespace Leap
         public GameObject triggerPlane;
         public GameObject overshootPlane;
         public GameObject Button;
+        public Leap.PhysicalHands.PhysicalHandsButton _button;
         public Vector3 palm_position;
         public Vector3 index_position;
 
         private Vector3 prev_index_position;
-        private float prev_time;    
-
+        private float prev_time;
+        float prevTravelDistance = 0;
 
         public enum MotionState { None, Start, Approach, Click, Overshoot, Withdraw, End };
         public MotionState currentState = MotionState.None;
-    
+
+        private bool freezeConditionDetected = false;
+        public float impact_position = 0.0f;
+
+        private float currentTrialMaxIndexZ = float.MinValue;
+        public List<float> trialMaxIndexZList = new List<float>();
+        private bool trialInProgress = false;
+
+        private float GROUND_TRUTH = 0.1293f;
 
 #if UNITY_EDITOR
         private void OnValidate()
@@ -331,7 +327,7 @@ namespace Leap
         public override void BeginHand()
         {
             base.BeginHand();
-
+            _button = Button.GetComponent<Leap.PhysicalHands.PhysicalHandsButton>();
             if (_useCustomColors)
             {
                 _sphereMat.color = _sphereColor;
@@ -359,6 +355,7 @@ namespace Leap
         /// </summary>
         public override void UpdateHand()
         {
+            
             //Debug.LogFormat("Palm pos:{0}, Index pos:{1}",palm_position,index_position);
             currentLossyScaleX = transform.lossyScale.x;
 
@@ -493,11 +490,11 @@ namespace Leap
                 Graphics.DrawMeshInstanced(_sphereMesh, 0, _sphereMat, _sphereMatrices, _curSphereIndex, null,
                   _castShadows ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off, true, gameObject.layer);
             }
-           
 
-                UpdateMotionState();
-                
-            
+
+            UpdateMotionState();
+
+
 
             // Draw Cylinders
 #if UNITY_EDITOR
@@ -508,18 +505,66 @@ namespace Leap
             Graphics.DrawMeshInstanced(_cylinderMesh, 0, _backing_material, _cylinderMatrices, _curCylinderIndex, null,
               _castShadows ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off, true, gameObject.layer);
         }
-private float prev_index_z = 0.0f;
+        private float prev_index_z = 0.0f;
+        
+        bool IsCloseEnough(float a, float b, float threshold = 0.005f)
+        {
+            return Mathf.Abs(a - b) < threshold;
+        }
 
+        public void PrintAllTrialMaxZ()
+        {
+            for (int i = 0; i < trialMaxIndexZList.Count; i++)
+            {
+                Debug.Log($"Trial {i + 1} Error: {trialMaxIndexZList[i]-GROUND_TRUTH}");
+            }
+        }
+
+        
         void UpdateMotionState()
         {
+            
             float indexZ = index_position.z;
             float prevZ = prev_index_z;
             prev_index_z = indexZ;  // Save for next frame
 
+            if (currentState == MotionState.Start && !trialInProgress)
+            {
+                trialInProgress = true;
+                currentTrialMaxIndexZ = indexZ; // 초기화
+            }
+            else if (trialInProgress)
+            {
+                currentTrialMaxIndexZ = Mathf.Max(currentTrialMaxIndexZ, indexZ);
+            }
+
+            if (currentState == MotionState.End && trialInProgress)
+            {
+                trialMaxIndexZList.Add(currentTrialMaxIndexZ); // 저장
+                trialInProgress = false;
+                Debug.Log("Trial Max IndexZ: " + currentTrialMaxIndexZ);
+            }
+
             float triggerZ = triggerPlane.transform.position.z;
             float overshootZ = overshootPlane.transform.position.z;
 
-            const float zThreshold = 0.05f; // 오차 허용
+            const float zThreshold = 0.03f; // 오차 허용
+            _button.UpdateInspectorValues();
+           float currentTravel = _button._buttonTravelDistance;
+            int[] contactMotorValueArray = new int[] { 0,10, 0, 0, 0, 0 };
+            int[] confirmMotorValueArray = new int[] { 0,100, 0, 0, 0, 0 };
+           // Debug.LogFormat("index z pos:{0}, currentTravel:{1}, prevTravelDistance:{2}", indexZ,currentTravel,prevTravelDistance);
+            if (!freezeConditionDetected && IsCloseEnough(currentTravel,impact_position) )
+            //&& Mathf.Approximately(currentTravel, prevTravelDistance)
+            {
+                BhapticsLibrary.PlayMotors(
+                    9,
+                    confirmMotorValueArray,
+                    1
+                );
+                freezeConditionDetected = true;
+            }
+            prevTravelDistance = currentTravel;
 
             // 트래킹되지 않거나 index finger가 triggerPlane보다 앞(z작음)
             if (float.IsNaN(indexZ) || indexZ < triggerZ - zThreshold)
@@ -537,11 +582,14 @@ private float prev_index_z = 0.0f;
             else if (indexZ > triggerZ + zThreshold && indexZ < overshootZ - zThreshold && indexZ > prevZ)
             {
                 currentState = MotionState.Approach;
+
             }
+
             // 3) Overshoot
             else if (indexZ >= overshootZ - zThreshold)
             {
                 currentState = MotionState.Overshoot;
+
             }
             // 4) Withdraw
             else if (indexZ > triggerZ + zThreshold && indexZ < overshootZ - zThreshold && indexZ < prevZ)
@@ -552,11 +600,24 @@ private float prev_index_z = 0.0f;
             else if (Mathf.Abs(indexZ - triggerZ) < zThreshold && indexZ < prevZ)
             {
                 currentState = MotionState.End;
+                freezeConditionDetected = false;
+                PrintAllTrialMaxZ();
+               impact_position += 0.0001f*(trialMaxIndexZList[trialMaxIndexZList.Count - 1] - GROUND_TRUTH);
+                if (Mathf.Abs(impact_position) > 0.1) { impact_position = 0; }
+                Debug.Log(impact_position);
             }
             //Debug.Log(currentState);
-}
+        }
 
+        void adjust_undershoot()
+        { 
+            impact_position -= 0.000001f;
+        }
 
+        void adjust_overshoot()
+        { 
+            impact_position += 0.000001f;
+        }
 
         void DrawArm()
         {
