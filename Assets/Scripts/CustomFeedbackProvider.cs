@@ -15,6 +15,8 @@ public class CustomFeedbackProvider : MonoBehaviour
     private Leap.PhysicalHands.IgnorePhysicalHands _ignore;
     private Leap.Examples.SimpleInteractionGlow _buttonColor;
 
+    private Rigidbody rigidBody_pressable;  
+
     public enum FeedbackType
     {
         OnlyVisual = 0,
@@ -27,9 +29,11 @@ public class CustomFeedbackProvider : MonoBehaviour
     [SerializeField]
     public FeedbackType _feedbackPreset;
 
-    private bool is_visual = true;
-    private bool is_vibrotactile = true;
-    private bool is_adaptive = false;
+    private bool is_visual;
+    private bool is_vibrotactile;
+    public bool is_adaptive = false;
+
+    public bool vibrotactile_applied = false;
 
     int[] contactMotorValueArray = new int[] { 0, 10, 0, 0, 0, 0 };
     int[] confirmMotorValueArray = new int[] { 0, 100, 0, 0, 0, 0 };
@@ -90,20 +94,34 @@ public class CustomFeedbackProvider : MonoBehaviour
     {
         _ignore = PressableObject.GetComponent<Leap.PhysicalHands.IgnorePhysicalHands>();
         _buttonColor = PressableObject.GetComponent<Leap.Examples.SimpleInteractionGlow>();
+        rigidBody_pressable = PressableObject.GetComponent<Rigidbody>();
+        rigidBody_pressable.constraints = RigidbodyConstraints.FreezePositionX | RigidbodyConstraints.FreezePositionY;
     }
 
     void Update()
     {
+        //Debug.LogFormat("freeze condition: {0}, isCloseEnough:{1}, is vibrotactile: {2}",RightHand.freezeConditionDetected,RightHand.IsCloseEnough(RightHand.currentTravel, RightHand.impact_position), is_vibrotactile);
         UpdateFeedbackType();
         if (!RightHand.freezeConditionDetected && RightHand.IsCloseEnough(RightHand.currentTravel, RightHand.impact_position))
         {
-            if (is_vibrotactile) { ApplyVibrotactileFeedback(confirmMotorValueArray); }
+            Debug.LogFormat("is vibrotactile: {0}", is_vibrotactile);
+            // 여기에서 보내기 활성화
+            if (is_vibrotactile)
+            {
+                ApplyVibrotactileFeedback(confirmMotorValueArray);
+                vibrotactile_applied = true;
+            }
         }
+        
 
     }
 
-    void ApplyVibrotactileFeedback(int [] MotorValueArray)
-    { 
+    void ApplyVibrotactileFeedback(int[] MotorValueArray)
+    {
+        if (RightHand.freezeConditionDetected)
+        {
+            Debug.LogError("Freeze Condition; True");
+        }
         BhapticsLibrary.PlayMotors(
                     9,  // # of index finger motor 
                     MotorValueArray,

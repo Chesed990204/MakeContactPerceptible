@@ -3250,6 +3250,7 @@ MonoBehaviour:
   serverPort: 25001
   RightHand: {fileID: 843956594}
   FeedbackProvider: {fileID: 0}
+  sendingActive: 0
   num_trial: 0
 --- !u!1 &1077154110
 GameObject:
@@ -4078,7 +4079,7 @@ MonoBehaviour:
   PressableObject: {fileID: 769000153}
   pseudo_PressableObject: {fileID: 1977435517}
   RightHand: {fileID: 843956594}
-  _feedbackPreset: 3
+  _feedbackPreset: 0
 --- !u!1001 &1225848859379569214
 PrefabInstance:
   m_ObjectHideFlags: 0

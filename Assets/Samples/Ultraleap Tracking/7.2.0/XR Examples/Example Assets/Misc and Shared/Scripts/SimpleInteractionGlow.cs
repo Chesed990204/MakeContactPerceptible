@@ -54,6 +54,8 @@ namespace Leap.Examples
         bool _isPrimaryHoveredLeft = false;
         bool _isPrimaryHoveredRight = false;
 
+        public bool isColorActive = true;
+
         Rigidbody _rigBody;
 
         [System.Serializable]
@@ -93,7 +95,7 @@ namespace Leap.Examples
 
         void Update()
         {
-            if (_materials != null)
+           if(isColorActive){ if (_materials != null)
             {
                 // The target color for the Interaction object will be determined by various simple state checks.
                 Color targetColor = defaultColor;
@@ -129,7 +131,7 @@ namespace Leap.Examples
                 {
                     _materials[i].color = Color.Lerp(_materials[i].color, targetColor, 30F * Time.deltaTime);
                 }
-            }
+            }}
         }
 
         #region Physical Hand Callbacks

@@ -91,7 +91,7 @@ namespace Leap
 
         [SerializeField]
         private bool _useCustomColors = false;
-
+        private float ADAPTIVE_COEFFICIENT = 0.1f;
         [SerializeField]
         [DisableIf("_useCustomColors", isEqualTo: false)]
         private Color _sphereColor = Color.green, _cylinderColor = Color.white;
@@ -273,14 +273,58 @@ namespace Leap
         public enum MotionState { None, Start, Approach, Click, Overshoot, Withdraw, End };
         public MotionState currentState = MotionState.None;
 
-        private bool freezeConditionDetected = false;
+        public bool freezeConditionDetected = false;
         public float impact_position = 0.0f;
 
         private float currentTrialMaxIndexZ = float.MinValue;
         public List<float> trialMaxIndexZList = new List<float>();
         private bool trialInProgress = false;
+        public bool is_adaptive;
 
-        private float GROUND_TRUTH = 0.1293f;
+        public float currentTravel;
+
+        public float GROUND_TRUTH = 0.1293f;
+
+        private const int TRIALS_PER_EPISODE = 15; // 한 에피소드당 시도 횟수
+        private List<float> trialErrors = new List<float>(); // 각 시도 오차를 저장할 리스트
+        private int completedValidTrialsInCurrentEpisode = 0; // 현재 에피소드에서 완료된 '유효한' 시도 횟수
+
+        // 시도 결과 기록 및 에피소드 계산을 위한 메서드 추가
+        public void RecordTrialOutcome(float error, bool isValidTrial)
+        {
+            if (!is_adaptive) return; // is_adaptive 모드가 아니면 에피소드 계산을 수행하지 않음
+
+            if (isValidTrial)
+            {
+                trialErrors.Add(error); // 유효한 시도만 에러 리스트에 추가
+                completedValidTrialsInCurrentEpisode++; // 유효한 시도 횟수 증가
+                Debug.Log($"Adaptive Mode: Valid Trial {completedValidTrialsInCurrentEpisode}/{TRIALS_PER_EPISODE} completed. Error: {error:.5f}");
+
+                if (completedValidTrialsInCurrentEpisode >= TRIALS_PER_EPISODE) // 15회 유효한 시도가 완료되면
+                {
+                    // 에피소드의 평균 오차 계산
+                    float sumErrors = 0;
+                    foreach (float err in trialErrors)
+                    {
+                        sumErrors += err;
+                    }
+                    float meanEpisodeError = sumErrors / trialErrors.Count;
+
+                    // impact_position 업데이트
+                    impact_position += ADAPTIVE_COEFFICIENT * meanEpisodeError;
+                    
+                    Debug.LogFormat($"Adaptive Mode: Episode completed. Mean Error: {meanEpisodeError}. New Impact Position: {impact_position}");
+
+                    // 다음 에피소드를 위해 초기화
+                    trialErrors.Clear(); // 오차 리스트 초기화
+                    completedValidTrialsInCurrentEpisode = 0; // 유효한 시도 횟수 초기화
+                }
+            }
+            else
+            {
+                Debug.Log($"Adaptive Mode: Trial discarded by Python. Not included in episode calculation."); // 폐기된 시도는 에피소드 계산에서 제외
+            }
+        }
 
 #if UNITY_EDITOR
         private void OnValidate()
@@ -507,7 +551,7 @@ namespace Leap
         }
         private float prev_index_z = 0.0f;
         
-        bool IsCloseEnough(float a, float b, float threshold = 0.005f)
+        public bool IsCloseEnough(float a, float b, float threshold = 0.005f)
         {
             return Mathf.Abs(a - b) < threshold;
         }
@@ -525,6 +569,7 @@ namespace Leap
         {
             
             float indexZ = index_position.z;
+            currentTravel = indexZ;
             float prevZ = prev_index_z;
             prev_index_z = indexZ;  // Save for next frame
 
@@ -550,20 +595,20 @@ namespace Leap
 
             const float zThreshold = 0.03f; // 오차 허용
             _button.UpdateInspectorValues();
-           float currentTravel = _button._buttonTravelDistance;
+           //float currentTravel = _button._buttonTravelDistance;
             int[] contactMotorValueArray = new int[] { 0,10, 0, 0, 0, 0 };
             int[] confirmMotorValueArray = new int[] { 0,100, 0, 0, 0, 0 };
            // Debug.LogFormat("index z pos:{0}, currentTravel:{1}, prevTravelDistance:{2}", indexZ,currentTravel,prevTravelDistance);
-            if (!freezeConditionDetected && IsCloseEnough(currentTravel,impact_position) )
-            //&& Mathf.Approximately(currentTravel, prevTravelDistance)
-            {
-                BhapticsLibrary.PlayMotors(
-                    9,
-                    confirmMotorValueArray,
-                    1
-                );
-                freezeConditionDetected = true;
-            }
+            // if (!freezeConditionDetected && IsCloseEnough(currentTravel,impact_position) )
+            // //&& Mathf.Approximately(currentTravel, prevTravelDistance)
+            // {
+            //     BhapticsLibrary.PlayMotors(
+            //         9,
+            //         confirmMotorValueArray,
+            //         1
+            //     );
+            //     freezeConditionDetected = true;
+            // }
             prevTravelDistance = currentTravel;
 
             // 트래킹되지 않거나 index finger가 triggerPlane보다 앞(z작음)
@@ -602,9 +647,9 @@ namespace Leap
                 currentState = MotionState.End;
                 freezeConditionDetected = false;
                 PrintAllTrialMaxZ();
-               impact_position += 0.0001f*(trialMaxIndexZList[trialMaxIndexZList.Count - 1] - GROUND_TRUTH);
-                if (Mathf.Abs(impact_position) > 0.1) { impact_position = 0; }
-                Debug.Log(impact_position);
+               // impact_position += 0.000001f*(trialMaxIndexZList[trialMaxIndexZList.Count - 1] - GROUND_TRUTH);
+                // if (Mathf.Abs(impact_posit{ion) > 0.1) { impact_position = 0; }
+                Debug.LogFormat("impact pos: {0}",impact_position);
             }
             //Debug.Log(currentState);
         }
