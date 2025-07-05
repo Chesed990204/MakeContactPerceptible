@@ -9,9 +9,6 @@ import numpy as np
 import os
 import threading
 
-# Import the optimizer function
-# from optimizer import run_adaptive_impact_position_optimizer # 현재 사용하지 않으므로 주석 처리
-
 # --- Configuration for Trial Success ---
 # index_z가 최소한 넘어야 하는 값 (0보다 커야 함)
 MIN_INDEX_Z_THRESHOLD = 0.0 
@@ -35,10 +32,9 @@ episode_data = [] # 에피소드 통계 데이터를 저장할 리스트
 current_feedback_type = "UNKNOWN" # 현재 피드백 타입을 저장할 변수 (초기값)
 last_processed_feedback_type = "UNKNOWN" # 마지막으로 처리된 피드백 타입을 저장할 변수
 
-# Trial 데이터 히스토리 (undo 기능을 위해)
+
 trial_history = [] # 각 trial의 (indexZ_list, metadata) 튜플을 저장
 
-# --- NEW Global Variables for Folder Structure ---
 BASE_SAVE_DIR = ""  # 사용자 이름으로 생성될 최상위 폴더
 FEEDBACK_SUBDIRS = {
     "OnlyVisual": "0.Visual",
@@ -222,9 +218,6 @@ def update_plot(frame):
         ax1.set_ylim(-0.1, 0.3)
 
 
-    # --- axs[0,1]: Episode별 MaxZ 평균 및 분산 ---
-    # --- axs[1,0]: Episode별 Error 통계 업데이트 ---
-    # --- NEW: axs[0,2]: Episode별 Impact Position 통계 업데이트 ---
     if episode_data:
         episode_numbers = [d['episode_num'] for d in episode_data]
         
