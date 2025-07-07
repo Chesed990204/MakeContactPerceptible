@@ -47,7 +47,7 @@ FEEDBACK_SUBDIRS = {
 
 # 서브플롯 생성: 2행 3열로 구성 (새로운 Impact 통계 그래프 추가)
 fig, axs = plt.subplots(2, 3, figsize=(20, 10)) # figsize도 조정
-fig.suptitle('Button Press Experiment Dashboard', fontsize=16)
+fig.suptitle('Button Press demo Dashboard', fontsize=16)
 
 
 # --- axs[0,0]: 개별 Trial의 Index Z 변화 (현재 Trial) ---
@@ -438,7 +438,7 @@ def run_server_session():
         user_name = "default_user"
         print("이름이 입력되지 않아 'default_user'로 설정합니다.")
     
-    BASE_SAVE_DIR = os.path.join("experiment_data", user_name) # 'experiment_data' 하위에 사용자 이름 폴더
+    BASE_SAVE_DIR = os.path.join("demo_data", user_name) # 'demo_data' 하위에 사용자 이름 폴더
     
     if os.path.exists(BASE_SAVE_DIR):
         print(f"경고: '{user_name}' 폴더가 이미 존재합니다. 기존 폴더를 사용합니다.")
