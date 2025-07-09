@@ -595,20 +595,12 @@ namespace Leap
 
             const float zThreshold = 0.03f; // 오차 허용
             _button.UpdateInspectorValues();
-           //float currentTravel = _button._buttonTravelDistance;
+        
+
+        
             int[] contactMotorValueArray = new int[] { 0,10, 0, 0, 0, 0 };
             int[] confirmMotorValueArray = new int[] { 0,100, 0, 0, 0, 0 };
-           // Debug.LogFormat("index z pos:{0}, currentTravel:{1}, prevTravelDistance:{2}", indexZ,currentTravel,prevTravelDistance);
-            // if (!freezeConditionDetected && IsCloseEnough(currentTravel,impact_position) )
-            // //&& Mathf.Approximately(currentTravel, prevTravelDistance)
-            // {
-            //     BhapticsLibrary.PlayMotors(
-            //         9,
-            //         confirmMotorValueArray,
-            //         1
-            //     );
-            //     freezeConditionDetected = true;
-            // }
+           
             prevTravelDistance = currentTravel;
 
             // 트래킹되지 않거나 index finger가 triggerPlane보다 앞(z작음)

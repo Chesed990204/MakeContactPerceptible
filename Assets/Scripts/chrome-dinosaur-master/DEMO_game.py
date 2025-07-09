@@ -35,7 +35,6 @@ BG = pygame.image.load(os.path.join("Assets/Other", "Track.png"))
 immortal = False
 # --- 실시간 제어를 위한 전역 변수 ---
 global_vibro_condition_met = False
-# NEW: global_vibro_condition_met이 True가 된 마지막 시간
 last_vibro_true_time = 0 
 REAL_TIME_SERVER_PORT = 25002 
 # ------------------------------------
@@ -63,13 +62,6 @@ class Dinosaur:
         self.dino_rect.y = self.Y_POS
 
     def update(self, userInput, jump_triggered_by_vibro_condition): 
-        # === NEW DEBUGGING: update 메서드 진입 시점의 상세 상태 ===
-        # 각 프레임마다 호출되므로, 점프 관련 주요 변수들의 현재 상태를 확인
-        # print(f"[Dino.update START] "
-        #       f"dino_jump:{self.dino_jump}, jump_vel:{self.jump_vel:.2f}, "
-        #       f"vibro_input:{jump_triggered_by_vibro_condition}, K_UP_input:{userInput[pygame.K_UP]}")
-        # ==========================================================
-
         if self.dino_duck:
             self.duck()
         if self.dino_run:
@@ -80,37 +72,27 @@ class Dinosaur:
         if self.step_index >= 10:
             self.step_index = 0
 
-        # === 핵심 변경: global_vibro_condition_met이 True이면 무조건 점프 상태로 진입 ===
         if jump_triggered_by_vibro_condition or userInput[pygame.K_UP]: 
-            # 디버깅: 점프 상태 진입 시 현재 dino_jump 상태와 입력 소스 확인
-            if not self.dino_jump: # 실제로 점프 상태가 아니었다가 점프 상태로 진입할 때만 출력
+            if not self.dino_jump:
                 if jump_triggered_by_vibro_condition:
                     print(f"[Dino.update JUMP_INIT] Triggered by vibro_condition. dino_jump was False.")
                 elif userInput[pygame.K_UP]:
                     print(f"[Dino.update JUMP_INIT] Triggered by K_UP. dino_jump was False.")
-            # 점프 상태로 전환
             self.dino_duck = False
             self.dino_run = False
             self.dino_jump = True
         elif userInput[pygame.K_DOWN]: 
-            if not self.dino_jump: # 점프 중이 아닐 때만 숙이도록 함
+            if not self.dino_jump:
                 print(f"[Dino.update DUCK_INIT] DUCKING due to K_DOWN.")
                 self.dino_duck = True
                 self.dino_run = False
                 self.dino_jump = False
-            # else:
-            #     print(f"[Dino.update DUCK_BLOCKED] K_DOWN ignored (dino_jump is {self.dino_jump})")
         elif not (self.dino_jump or self.dino_duck): 
-            # 디버깅: 달리기 상태 진입 시 (점프/숙이기가 아닐 때)
-            if not self.dino_run: # 달리기 상태가 아니었다가 달리기 상태로 진입할 때만 출력
+            if not self.dino_run:
                 print(f"[Dino.update RUN_INIT] RUNNING (no jump/duck input).")
             self.dino_duck = False
             self.dino_run = True
             self.dino_jump = False
-        # else:
-        #     # 이 경우는 현재 점프 중이거나 숙이기 중인데 다른 입력이 없거나 무시된 경우.
-        #     # print(f"[Dino.update NO_STATE_CHANGE] Current state: Jump={self.dino_jump}, Duck={self.dino_duck}, Run={self.dino_run}")
-        #     pass
 
     def duck(self):
         self.image = self.duck_img[self.step_index // 5]
@@ -133,7 +115,6 @@ class Dinosaur:
             self.jump_vel -= 0.8
         
         if self.jump_vel < - self.JUMP_VEL: 
-            # 디버깅: 착지 시점
             print(f"[Dino.jump LANDED] dino_jump was {self.dino_jump}. Resetting jump_vel.")
             self.dino_jump = False
             self.jump_vel = self.JUMP_VEL
@@ -190,9 +171,9 @@ class LargeCactus(Obstacle):
 
 
 class Bird(Obstacle):
-    def __init__(self, image): # 생성자에 image 파라미터 추가
+    def __init__(self, image):
         self.type = 0
-        super().__init__(image, self.type) # BIRD 이미지를 전달받도록 수정
+        super().__init__(image, self.type)
         self.rect.y = 250
         self.index = 0
 
@@ -213,7 +194,7 @@ def parse_realtime_data(msg):
     return data
 
 def run_realtime_server():
-    global global_vibro_condition_met, last_vibro_true_time # NEW: last_vibro_true_time 사용
+    global global_vibro_condition_met, last_vibro_true_time
     realtime_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     realtime_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     
@@ -222,18 +203,20 @@ def run_realtime_server():
         realtime_server_socket.listen(1)
         print(f"Real-time server listening for connection on port {REAL_TIME_SERVER_PORT}...")
         
-        conn = None
+        # 외부 루프: 클라이언트 연결을 계속 기다림
         while True: 
+            conn = None # 연결 객체 초기화
             try:
                 conn, addr = realtime_server_socket.accept()
                 print(f"Real-time client connected by {addr}")
-                receive_buffer = ""
+                receive_buffer = "" # 새 연결마다 버퍼 초기화
                 
+                # 내부 루프: 현재 클라이언트로부터 데이터를 지속적으로 받음
                 while True: 
                     data_chunk = conn.recv(1024)
                     if not data_chunk:
                         print(f"Real-time client {addr} disconnected.")
-                        break 
+                        break # 현재 클라이언트와의 데이터 수신 루프 종료
                     
                     receive_buffer += data_chunk.decode('utf-8')
                     
@@ -248,16 +231,13 @@ def run_realtime_server():
                         try:
                             parsed_rt = parse_realtime_data(full_message)
                             if 'vibroCondition' in parsed_rt:
-                                # Debugging: 수신된 vibroCondition 상태와 global_vibro_condition_met 변경 여부
                                 if global_vibro_condition_met != parsed_rt['vibroCondition']:
                                     print(f"[RT Server] global_vibro_condition_met changed from {global_vibro_condition_met} to {parsed_rt['vibroCondition']}")
                                 
                                 global_vibro_condition_met = parsed_rt['vibroCondition']
                                 
-                                # NEW: global_vibro_condition_met이 True가 된 시점 기록
                                 if global_vibro_condition_met:
                                     last_vibro_true_time = time.time()
-                                    # print(f"[RT Server] last_vibro_true_time set to {last_vibro_true_time:.4f}")
 
                                 conn.sendall(b"OK_RT\n") 
                             else:
@@ -276,13 +256,15 @@ def run_realtime_server():
                 print(f"An unexpected error occurred in real-time client handling: {e}")
             finally:
                 if conn:
-                    conn.close() 
-                print("Waiting for new real-time client connection...")
+                    conn.close() # 현재 클라이언트 연결 종료
+                    conn = None # conn을 None으로 설정하여 다음 accept() 시도를 보장
+                time.sleep(1) # 재연결 시도 전 잠시 대기
 
     except Exception as e:
-        print(f"Server socket initialization or binding error: {e}")
+        print(f"Server socket initialization or binding error: {e}. Server will shut down.")
     finally:
-        realtime_server_socket.close()
+        if realtime_server_socket: # 서버 소켓이 유효한 경우에만 닫기
+            realtime_server_socket.close()
         print("Real-time server shut down.")
 
 
@@ -321,11 +303,10 @@ def main():
             x_pos_bg = 0
         x_pos_bg -= game_speed
     
-    # NEW: 마지막 프레임의 global_vibro_condition_met 상태를 저장
     previous_global_vibro_condition_met = False
 
     while run:
-        current_frame_time = time.time() # NEW: 현재 프레임 시간 기록
+        current_frame_time = time.time()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -336,8 +317,6 @@ def main():
 
         jump_by_vibro_condition = global_vibro_condition_met
         
-        # === NEW DEBUGGING: 메인 루프 시작 시점의 상세 상태 ===
-        # 이전 프레임과 현재 프레임의 global_vibro_condition_met 변화 감지
         if jump_by_vibro_condition and not previous_global_vibro_condition_met:
             time_since_true = current_frame_time - last_vibro_true_time if last_vibro_true_time > 0 else -1
             print(f"[Main Loop START] VIBRO_TRUE_CHANGE! global_vibro_condition_met:{global_vibro_condition_met}, "
@@ -345,13 +324,10 @@ def main():
                   f"Player dino_jump:{player.dino_jump}")
         elif not jump_by_vibro_condition and previous_global_vibro_condition_met:
             print(f"[Main Loop START] VIBRO_FALSE_CHANGE! global_vibro_condition_met:{global_vibro_condition_met}.")
-        # ======================================================
 
-        # player.update에 userInput과 jump_by_vibro_condition을 전달
         player.draw(SCREEN)
         player.update(userInput, jump_by_vibro_condition) 
 
-        # NEW: 현재 프레임의 global_vibro_condition_met 상태를 다음 프레임을 위해 저장
         previous_global_vibro_condition_met = global_vibro_condition_met
 
         if len(obstacles) == 0:
@@ -360,7 +336,7 @@ def main():
             elif random.randint(0, 2) == 1:
                 obstacles.append(LargeCactus(LARGE_CACTUS))
             elif random.randint(0, 2) == 2:
-                obstacles.append(Bird(BIRD)) # Bird 클래스 생성자에 이미지 전달
+                obstacles.append(Bird(BIRD))
 
         for obstacle in obstacles:
             obstacle.draw(SCREEN)
@@ -378,8 +354,6 @@ def main():
 
         score()
 
-        # NEW: FPS와 현재 프레임 시간 로깅
-        # print(f"FPS: {clock.get_fps():.1f}, Frame Duration: {(time.time() - current_frame_time)*1000:.2f}ms")
         clock.tick(30) 
         pygame.display.update()
 
@@ -411,7 +385,7 @@ def menu(death_count):
                 run = False
             if event.type == pygame.K_DOWN: 
                 global_vibro_condition_met = False 
-                last_vibro_true_time = 0 # NEW: 초기화
+                last_vibro_true_time = 0 
                 print("Menu: Keyboard input detected. Starting game.")
                 main()
                 return 
@@ -419,7 +393,7 @@ def menu(death_count):
         if global_vibro_condition_met:
             print("Menu: Unity vibro condition detected. Starting game.")
             global_vibro_condition_met = False 
-            last_vibro_true_time = 0 # NEW: 초기화
+            last_vibro_true_time = 0 
             main()
             return 
 
