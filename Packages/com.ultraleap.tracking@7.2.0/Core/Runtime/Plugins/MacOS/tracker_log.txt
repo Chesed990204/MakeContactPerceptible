@@ -1,0 +1,3 @@
+[2025-07-05 16:47:26.462] [console] [error] Send()#164:  ControlPanel send error: invalid state
+[2025-07-05 16:47:26.469] [console] [error] Send()#164:  ControlPanel send error: invalid state
+[2025-07-05 17:01:29.380] [console] [error] Send()#164:  ControlPanel send error: invalid state
