@@ -90,12 +90,15 @@ ax2.grid(True)
 
 # --- NEW: axs[2]: Episode별 Target Impact Position ---
 ax5 = axs[2] # Adjusted index for 1x3 subplot
-episode_initial_impact_line, = ax5.plot([], [], 'k-o', label='Target Impact Pos (Start of Episode)')
+episode_initial_impact_line, = ax5.plot([], [], 'k-o', label='Vib Feedback Trigger Pos Updated')
 episode_impact_text_box = ax5.text(0.02, 0.95, '', transform=ax5.transAxes, verticalalignment='top')
 ax5.legend()
-ax5.set_title(f'Episode Statistics: Target Impact Position (Trials per Episode: {TRIALS_PER_EPISODE})')
+ax5.set_title(f'Episode Statistics: Vibrotactile Trigger Position (Trials per Episode: {TRIALS_PER_EPISODE})')
 ax5.set_xlabel("Episode Number")
 ax5.set_ylabel("Impact Position (m)")
+contact_line_ax5 = ax5.axhline(CONTACT_Z, color='blue', linestyle='-', linewidth=3, label=f'Contact ({CONTACT_Z}m)')
+bottom_out_line_ax5 = ax5.axhline(BOTTOM_OUT_Z, color='red', linestyle='-', linewidth=3, label=f'Bottom Out ({BOTTOM_OUT_Z}m)')
+ax5.axhspan(CONTACT_Z, BOTTOM_OUT_Z, color='lightgray', alpha=0.3, label='Button Press Zone')
 ax5.grid(True)
 
 
