@@ -59,7 +59,7 @@ fig.suptitle('Button Press demo Dashboard', fontsize=16)
 ax1 = axs[0] # Adjusted index for 1x3 subplot
 line, = ax1.plot([], [], 'o-', label='Index Z')
 maxZ_marker = ax1.axhline(0, color='darkred', linestyle='--', label='Max Z')
-impact_marker = ax1.axhline(0, color='green', linestyle='--', label='Impact Point')
+impact_marker = ax1.axhline(0, color='green', linestyle='-',linewidth = 2,  label='Vib trigger')
 # Re-add Contact, Bottom Out, and Button Press Zone
 contact_line_ax1 = ax1.axhline(CONTACT_Z, color='blue', linestyle='-', linewidth=3,label=f'Contact ({CONTACT_Z}m)')
 bottom_out_line_ax1 = ax1.axhline(BOTTOM_OUT_Z, color='red', linestyle='-', linewidth=3,label=f'Bottom Out ({BOTTOM_OUT_Z}m)')
@@ -81,6 +81,10 @@ ax2.legend()
 ax2.set_title(f'Episode Statistics: MaxZ (Trials per Episode: {TRIALS_PER_EPISODE})')
 ax2.set_xlabel("Episode Number")
 ax2.set_ylabel("Max Z Value (m)")
+contact_line_ax2 = ax2.axhline(CONTACT_Z, color='blue', linestyle='-', linewidth=3, label=f'Contact ({CONTACT_Z}m)')
+bottom_out_line_ax2 = ax2.axhline(BOTTOM_OUT_Z, color='red', linestyle='-', linewidth=3, label=f'Bottom Out ({BOTTOM_OUT_Z}m)')
+ax2.axhspan(CONTACT_Z, BOTTOM_OUT_Z, color='lightgray', alpha=0.3, label='Button Press Zone')
+
 ax2.grid(True)
 
 
